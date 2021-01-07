@@ -174,7 +174,7 @@ class LimeUsd(InputErasure):
 
 class RNNSL:
 
-    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100):
+    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100, embedding_matrix=None):
         self.maxlen = maxlen
         self.METRICS = [BinaryAccuracy(name='accuracy'),
                         Precision(name='precision'),
@@ -198,10 +198,14 @@ class RNNSL:
         self.not_toxic_label = 1
         self.unk_token = "[unk]"
         self.pad_token = "[pad]"
+        self.embedding_matrix = embedding_matrix
 
     def build(self):
         input = Input(shape=(self.maxlen,))
-        model = Embedding(input_dim=self.vocab_size+1, output_dim=self.w_embed_size, input_length=self.maxlen, mask_zero=True)(input)  # 50-dim embedding
+        if self.embedding_matrix:
+          model = Embedding(input_dim=self.vocab_size+1, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=True, mask_zero=True)(input)
+        else: 
+          model = Embedding(input_dim=self.vocab_size+1, output_dim=self.w_embed_size, input_length=self.maxlen, mask_zero=True)(input)  # 50-dim embedding
         model = Dropout(self.dropout)(model)
         model = Bidirectional(LSTM(units=self.h_embed_size, return_sequences=True, recurrent_dropout=self.dropout))(model)  # variational biLSTM
         output = TimeDistributed(Dense(3, activation="sigmoid"))(model)
