@@ -12,7 +12,7 @@ from keras.layers import GRU, LSTM, Embedding, Dense, TimeDistributed, Dropout, 
 from keras.callbacks import EarlyStopping
 from keras.utils import plot_model
 from keras.metrics import BinaryAccuracy, Precision, Recall, AUC
-
+from tqdm import tqdm
 
 def write_offsets(offsets, filename="answer.txt"):
     """
@@ -174,7 +174,7 @@ class LimeUsd(InputErasure):
 
 class RNNSL:
 
-    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100, embedding_matrix=None):
+    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100, embeddings=None):
         self.maxlen = maxlen
         self.METRICS = [BinaryAccuracy(name='accuracy'),
                         Precision(name='precision'),
@@ -198,11 +198,12 @@ class RNNSL:
         self.not_toxic_label = 1
         self.unk_token = "[unk]"
         self.pad_token = "[pad]"
-        self.embedding_matrix = embedding_matrix
+        self.embeddings = embeddings #pandas frame
+        self.embedding_matrix = None
 
     def build(self):
         input = Input(shape=(self.maxlen,))
-        if self.embedding_matrix:
+        if self.embedding_matrix is not None:
           model = Embedding(input_dim=self.vocab_size+1, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=True, mask_zero=True)(input)
         else: 
           model = Embedding(input_dim=self.vocab_size+1, output_dim=self.w_embed_size, input_length=self.maxlen, mask_zero=True)(input)  # 50-dim embedding
@@ -240,12 +241,22 @@ class RNNSL:
         self.i2w = {i+2: self.w2i[w] for i,w in enumerate(self.vocab)}
         self.i2w[1] = self.unk_token
         #self.i2w[0] = self.pad_token
+        if self.embeddings is not None:
+          self.get_pretrained_embeddings()
+    
+    def get_pretrained_embeddings(self):
+        print('call')
+        self.embedding_matrix = np.zeros((self.vocab_size+1, self.embeddings.shape[1])) + np.random.uniform(low=-0.25, high=0.25, size=(self.vocab_size+1,  self.embeddings.shape[1]))
+        for word, i in tqdm(self.w2i.items(), position=0, leave=True):
+	          embedding_vector = self.embeddings[self.embeddings.index==word]
+	          if len(embedding_vector) > 0:
+		            self.embedding_matrix[i+1] = embedding_vector 
 
     def to_sequences(self, tokenized_texts):
         x = [[self.w2i[w] if w in self.w2i else 1 for w in t] for t in tokenized_texts]
         x = pad_sequences(sequences=x, maxlen=self.maxlen, padding=self.padding, value=0)  # padding
         return x
-
+    
     def fit(self, tokenized_texts, token_labels, validation_data=None, monitor="val_loss"):
         # set up the vocabulary and the related methods
         self.set_up_preprocessing(tokenized_texts)
