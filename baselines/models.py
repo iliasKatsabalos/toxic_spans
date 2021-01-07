@@ -246,11 +246,14 @@ class RNNSL:
     
     def get_pretrained_embeddings(self):
         print('call')
-        self.embedding_matrix = np.zeros((self.vocab_size+1, self.embeddings.shape[1])) + np.random.uniform(low=-0.25, high=0.25, size=(self.vocab_size+1,  self.embeddings.shape[1]))
-        for word, i in tqdm(self.w2i.items(), position=0, leave=True):
-	          embedding_vector = self.embeddings[self.embeddings.index==word]
-	          if len(embedding_vector) > 0:
-		            self.embedding_matrix[i+1] = embedding_vector 
+        w2i = pd.DataFrame.from_dict(data=self.w2i, orient='index')
+        embedding_matrix = pd.merge(w2i, self.embeddings, how='left', right_index=True, left_index=True)
+        embedding_matrix = embedding_matrix.iloc[:,1:]
+        embedding_matrix = embedding_matrix.fillna(np.random.uniform(-0.25,0.25))
+        embedding_matrix = embedding_matrix.loc[w2i.index]
+        embedding_matrix = np.vstack((np.zeros((1, embedding_matrix.shape[1])),
+                       embedding_matrix))
+        self.embedding_matrix = embedding_matrix
 
     def to_sequences(self, tokenized_texts):
         x = [[self.w2i[w] if w in self.w2i else 1 for w in t] for t in tokenized_texts]
