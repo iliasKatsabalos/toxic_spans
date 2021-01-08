@@ -204,7 +204,7 @@ class RNNSL:
     def build(self):
         input = Input(shape=(self.maxlen,))
         if self.embedding_matrix is not None:
-          model = Embedding(input_dim=self.vocab_size+1, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=True, mask_zero=True)(input)
+          model = Embedding(input_dim=self.vocab_size, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=False, mask_zero=True)(input)
         else: 
           model = Embedding(input_dim=self.vocab_size+1, output_dim=self.w_embed_size, input_length=self.maxlen, mask_zero=True)(input)  # 50-dim embedding
         model = Dropout(self.dropout)(model)
@@ -251,7 +251,7 @@ class RNNSL:
         embedding_matrix = embedding_matrix.iloc[:,1:]
         embedding_matrix = embedding_matrix.fillna(np.random.uniform(-0.25,0.25))
         embedding_matrix = embedding_matrix.loc[w2i.index]
-        embedding_matrix = np.vstack((np.zeros((1, embedding_matrix.shape[1])),
+        embedding_matrix = np.vstack((np.zeros((2, embedding_matrix.shape[1])),
                        embedding_matrix))
         self.embedding_matrix = embedding_matrix
 
