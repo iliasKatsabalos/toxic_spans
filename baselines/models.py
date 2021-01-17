@@ -174,7 +174,7 @@ class LimeUsd(InputErasure):
 
 class RNNSL:
 
-    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100, embeddings=None):
+    def __init__(self, maxlen=128, batch_size=32, w_embed_size=200, padding="post", h_embed_size=200, dropout=0.1, patience=1, plot=True, max_epochs=100, embeddings=None, trainable_embeddings=True):
         self.maxlen = maxlen
         self.METRICS = [BinaryAccuracy(name='accuracy'),
                         Precision(name='precision'),
@@ -200,11 +200,12 @@ class RNNSL:
         self.pad_token = "[pad]"
         self.embeddings = embeddings #pandas frame
         self.embedding_matrix = None
+        self.trainable_embeddings = trainable_embeddings
 
     def build(self):
         input = Input(shape=(self.maxlen,))
         if self.embedding_matrix is not None:
-          model = Embedding(input_dim=self.vocab_size+2, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=False, mask_zero=True)(input)
+          model = Embedding(input_dim=self.vocab_size+2, output_dim=self.embedding_matrix.shape[1], weights=[self.embedding_matrix], input_length=self.maxlen, trainable=self.trainable_embeddings, mask_zero=True)(input)
         else: 
           model = Embedding(input_dim=self.vocab_size+1, output_dim=self.w_embed_size, input_length=self.maxlen, mask_zero=True)(input)  # 50-dim embedding
         model = Dropout(self.dropout)(model)
@@ -245,7 +246,6 @@ class RNNSL:
           self.get_pretrained_embeddings()
     
     def get_pretrained_embeddings(self):
-        print('call')
         w2i = pd.DataFrame.from_dict(data=self.w2i, orient='index')
         embedding_matrix = pd.merge(w2i, self.embeddings, how='left', right_index=True, left_index=True)
         embedding_matrix = embedding_matrix.iloc[:,1:]
